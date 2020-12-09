@@ -59,13 +59,16 @@ export function isStorageValue(v: unknown): v is StorageValue {
 
 export interface Store {
   /**
-   * **Test-only API**
-   *
    * Gets the whole store.
+   *
+   * # Note
+   *
+   * We discourage the use of this API outside of the storage module or tests.
+   * Prefer using `get` with a specific index instead.
    *
    * @returns An object representing all the data recorded in the store.
    */
-  _testOnly_getWholeStore(): Promise<StorageObject>;
+  _getWholeStore(): Promise<StorageObject>;
 
   /**
    * Gets the value recorded to the given index on the store.
