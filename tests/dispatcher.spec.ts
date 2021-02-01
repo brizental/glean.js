@@ -5,7 +5,7 @@
 import assert from "assert";
 import sinon from "sinon";
 
-import Dispatcher from "dispatcher";
+import Dispatcher, { DispatcherState } from "dispatcher";
 
 const sandbox = sinon.createSandbox();
 
@@ -62,6 +62,7 @@ describe("Dispatcher", function() {
     }
 
     dispatcher.flushInit();
+    await dispatcher.testBlockOnQueue();
     for (let i = 0; i < 10; i++) {
       dispatcher.launch(stub);
     }
@@ -74,6 +75,7 @@ describe("Dispatcher", function() {
   it("queued tasks are executed in the order they are received", async function() {
     dispatcher = new Dispatcher();
     dispatcher.flushInit();
+    await dispatcher.testBlockOnQueue();
 
     let counter = 0;
     const counts = new Array(10).fill(0);
@@ -99,6 +101,7 @@ describe("Dispatcher", function() {
   it("each queued task is only executed once", async function () {
     dispatcher = new Dispatcher();
     dispatcher.flushInit();
+    await dispatcher.testBlockOnQueue();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stubs: sinon.SinonStub<any[], any>[] = [];
@@ -121,6 +124,7 @@ describe("Dispatcher", function() {
     }
 
     dispatcher.flushInit();
+    await dispatcher.testBlockOnQueue();
     assert.doesNotThrow(async () => await dispatcher.testBlockOnQueue());
   });
 
@@ -136,6 +140,7 @@ describe("Dispatcher", function() {
   it("queue is unbounded after calling flushInit once", async function () {
     dispatcher = new Dispatcher(5);
     dispatcher.flushInit();
+    await dispatcher.testBlockOnQueue();
 
     const stub = sandbox.stub().callsFake(sampleTask);
     for (let i = 0; i < 10; i++) {
@@ -149,6 +154,7 @@ describe("Dispatcher", function() {
   it("clearing stops and clears the queue", async function() {
     dispatcher = new Dispatcher();
     dispatcher.flushInit();
+    await dispatcher.testBlockOnQueue();
 
     const stub = sandbox.stub().callsFake(sampleTask);
     for (let i = 0; i < 100; i++) {
@@ -163,6 +169,7 @@ describe("Dispatcher", function() {
   it("stopping stops execution of tasks, even though tasks are still enqueued", async function() {
     dispatcher = new Dispatcher();
     dispatcher.flushInit();
+    await dispatcher.testBlockOnQueue();
 
     const stub = sandbox.stub().callsFake(sampleTask);
     for (let i = 0; i < 100; i++) {
@@ -173,5 +180,6 @@ describe("Dispatcher", function() {
 
     assert.ok(stub.callCount < 10);
     assert.strictEqual(dispatcher["queue"].length, 100 - stub.callCount);
+    assert.strictEqual(dispatcher["state"], DispatcherState.Stopped);
   });
 });
