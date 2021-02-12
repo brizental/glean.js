@@ -2,17 +2,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import Glean from "glean";
-import { ConfigurationInterface } from "config";
+import Glean from "core/glean";
+import { ConfigurationInterface } from "core/config";
 
 // Private Glean types to export.
-import PingType from "pings";
-import BooleanMetricType from "metrics/types/boolean";
-import CounterMetricType from "metrics/types/counter";
-import DatetimeMetricType from "metrics/types/datetime";
-import EventMetricType from "metrics/types/event";
-import StringMetricType from "metrics/types/string";
-import UUIDMetricType from "metrics/types/uuid";
+import PingType from "core/pings";
+import BooleanMetricType from "core/metrics/types/boolean";
+import CounterMetricType from "core/metrics/types/counter";
+import DatetimeMetricType from "core/metrics/types/datetime";
+import EventMetricType from "core/metrics/types/event";
+import StringMetricType from "core/metrics/types/string";
+import UUIDMetricType from "core/metrics/types/uuid";
+import Platform from "platform";
 
 export = {
   /**
@@ -28,16 +29,18 @@ export = {
    *
    * @param applicationId The application ID (will be sanitized during initialization).
    * @param uploadEnabled Determines whether telemetry is enabled.
-   *                      If disabled, all persisted metrics, events and queued pings (except
-   *                      first_run_date) are cleared.
+   *        If disabled, all persisted metrics, events and queued pings (except
+   *        first_run_date) are cleared.
+   * @param platform Platform specific implementations.
    * @param config Glean configuration options.
    */
   initialize(
     applicationId: string,
     uploadEnabled: boolean,
+    platform: Platform,
     config?: ConfigurationInterface
   ): void {
-    Glean.initialize(applicationId, uploadEnabled, config);
+    Glean.initialize(applicationId, uploadEnabled, platform, config);
   },
 
   /**

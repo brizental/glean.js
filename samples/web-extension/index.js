@@ -4,7 +4,7 @@
 
 "use strict";
 
-import Glean from "glean";
+import Glean from "core/glean";
 import { custom } from "./generated/pings";
 import { webextStarted, popupOpened } from "./generated/sample";
 

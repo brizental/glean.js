@@ -17,6 +17,10 @@
       "node_modules/web-ext-types"
     ],
     "baseUrl": "./src",
+    "paths": {
+      "core/*": ["./core/*"],
+      "platform/*": ["./platform/*"]
+    },
     "rootDir": "."
   },
   "include": ["**/*.ts", "**/*.tsx", "tests/index.spec.js"],

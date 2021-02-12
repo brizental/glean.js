@@ -4,16 +4,16 @@
   "description": "An implementation of the Glean SDK, a modern cross-platform telemetry client, for Javascript environments.",
   "main": "./dist/glean.js",
   "scripts": {
-    "test": "npm run build:test-webext && npm run test:unit",
-    "test:debug": "ts-mocha \"tests/**/*.spec.ts\" --paths -p ./tsconfig.json --recursive --inspect-brk",
-    "test:unit": "ts-mocha \"tests/**/*.spec.ts\" --paths -p ./tsconfig.json  --recursive --timeout 0",
+    "test": "npm run test:platform && npm run test:core",
+    "test:core": "ts-mocha \"tests/core/**/*.spec.ts\" --paths -p ./tsconfig.json  --recursive",
+    "test:platform": "npm run build:test-webext && ts-mocha \"tests/platform/**/*.spec.ts\" --paths -p ./tsconfig.json  --recursive --timeout 0",
+    "build:test-webext": "cd tests/platform/utils/webext/sample/ && npm install && npm run build:xpi",
     "lint": "eslint . --ext .ts,.js,.json --max-warnings=0",
     "fix": "eslint . --ext .ts,.js,.json --fix",
     "build:webext": "webpack --config webpack.config.webext.js --mode production",
     "dev:webext": "webpack --watch --config webpack.config.webext.js --mode development --devtool inline-source-map",
     "build:qt": "webpack --config webpack.config.qt.js --mode production",
-    "dev:qt": "webpack --watch --config webpack.config.qt.js --mode development  --devtool inline-source-map",
-    "build:test-webext": "cd tests/utils/webext/sample/ && npm install && npm run build:xpi"
+    "dev:qt": "webpack --watch --config webpack.config.qt.js --mode development  --devtool inline-source-map"
   },
   "repository": {
     "type": "git",
