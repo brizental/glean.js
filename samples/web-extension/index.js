@@ -4,11 +4,12 @@
 
 "use strict";
 
-import Glean from "core/glean";
 import { custom } from "./generated/pings";
 import { webextStarted, popupOpened } from "./generated/sample";
 
+Glean.setPlatform(webext);
 Glean.initialize("web-extension", true, { debug: { logPings: true }});
+
 webextStarted.set();
 
 // Listen for messages from the popup.

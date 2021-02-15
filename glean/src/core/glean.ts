@@ -16,7 +16,7 @@ import DatetimeMetricType, { DatetimeMetric } from "core/metrics/types/datetime"
 import Dispatcher from "core/dispatcher";
 import CorePings from "core/internal_pings";
 import Platform from "platform";
-import TestingPlatform from "platform/testing";
+import TestingPlatform from "platform/test";
 
 class Glean {
   // The Glean singleton.
@@ -192,7 +192,6 @@ class Glean {
    * @param uploadEnabled Determines whether telemetry is enabled.
    *        If disabled, all persisted metrics, events and queued pings
    *        (except first_run_date) are cleared.
-   * @param platform Platform specific implementations.
    * @param config Glean configuration options.
    *
    * @throws
@@ -202,7 +201,6 @@ class Glean {
   static initialize(
     applicationId: string,
     uploadEnabled: boolean,
-    platform: Platform,
     config?: ConfigurationInterface
   ): void {
     if (Glean.instance._initialized) {
@@ -210,7 +208,19 @@ class Glean {
       return;
     }
 
-    Glean.instance._platform = platform;
+    if (applicationId.length === 0) {
+      console.error("Unable to initialize Glean, applicationId cannot be an empty string.");
+      return;
+    }
+
+    if (!Glean.platform) {
+      console.error(
+        "Unable to initialize Glean, platform was not set.\n",
+        "Please call Glean.setPlatform, before calling Glean.initialize."
+      );
+      return;
+    }
+
     // Initialize databases.
     if (!Glean.instance._db) {
       Glean.instance._db = {
@@ -218,10 +228,6 @@ class Glean {
         events: new EventsDatabase(),
         pings: new PingsDatabase(Glean.pingUploader)
       };
-    }
-
-    if (applicationId.length === 0) {
-      throw new Error("Unable to initialize Glean, applicationId cannot be an empty string.");
     }
 
     // The configuration constructor will throw in case config has any incorrect prop.
@@ -342,6 +348,22 @@ class Glean {
   }
 
   /**
+   * Sets the current platform.
+   *
+   * This **must** be called before Glean initialize.
+   *
+   * @param platform
+   */
+  static setPlatform(platform: Platform) {
+    if (Glean.initialized) {
+      console.error("Attempted to set Glean's platform after Glean was initialized. Ignoring.");
+      return;
+    }
+
+    Glean.instance._platform = platform;
+  }
+
+  /**
    * Determines whether upload is enabled.
    *
    * When upload is disabled, no data will be recorded.
@@ -427,7 +449,8 @@ class Glean {
    * @param config Glean configuration options.
    */
   static testInitialize(applicationId: string, uploadEnabled = true, config?: Configuration): void {
-    Glean.initialize(applicationId, uploadEnabled, TestingPlatform, config);
+    Glean.instance._platform = TestingPlatform;
+    Glean.initialize(applicationId, uploadEnabled, config);
   }
 
   /**

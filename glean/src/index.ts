@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import Glean from "core/glean";
+import Platform from "platform";
 import { ConfigurationInterface } from "core/config";
 
 // Private Glean types to export.
@@ -13,9 +14,29 @@ import DatetimeMetricType from "core/metrics/types/datetime";
 import EventMetricType from "core/metrics/types/event";
 import StringMetricType from "core/metrics/types/string";
 import UUIDMetricType from "core/metrics/types/uuid";
-import Platform from "platform";
 
 export = {
+  /**
+   * Sets the platform Glean will be running on.
+   *
+   * The currently supported platforms are: web extensions and qt.
+   *
+   * Platforms can be found under "glean/platform/<your-platform>".
+   *
+   * ```js
+   * const Glean = require("glean");
+   * const webextGleanSupport = require("glean/platform/webext");
+   *
+   * Glean.setPlatform(webext);
+   * Glean.initialize("my-app-id", true);
+   * ```
+   *
+   * @param platform The platform to set.
+   */
+  setPlatform(platform: Platform): void {
+    Glean.setPlatform(platform);
+  },
+
   /**
    * Initialize Glean. This method should only be called once, subsequent calls will be no-op.
    *
@@ -31,16 +52,14 @@ export = {
    * @param uploadEnabled Determines whether telemetry is enabled.
    *        If disabled, all persisted metrics, events and queued pings (except
    *        first_run_date) are cleared.
-   * @param platform Platform specific implementations.
    * @param config Glean configuration options.
    */
   initialize(
     applicationId: string,
     uploadEnabled: boolean,
-    platform: Platform,
     config?: ConfigurationInterface
   ): void {
-    Glean.initialize(applicationId, uploadEnabled, platform, config);
+    Glean.initialize(applicationId, uploadEnabled, config);
   },
 
   /**

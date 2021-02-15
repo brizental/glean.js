@@ -8,7 +8,7 @@ import assert from "assert";
 import { setupFirefox, webExtensionAPIProxyBuilder } from "./utils/webext";
 import Store from "core/storage";
 
-import MockStore from "platform/testing/store";
+import MockStore from "platform/test/store";
 import WebExtStore from "platform/webext/store";
 import { isUndefined, JSONValue } from "core/utils";
 
