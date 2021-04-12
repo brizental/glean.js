@@ -2,25 +2,27 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { CLIENT_INFO_STORAGE, KNOWN_CLIENT_ID } from "./constants.js";
+import { CLIENT_INFO_STORAGE, DELETION_REQUEST_PING_NAME, KNOWN_CLIENT_ID } from "./constants.js";
 import { Configuration, ConfigurationInterface } from "./config.js";
 import MetricsDatabase from "./metrics/database.js";
 import PingsDatabase from "./pings/database.js";
 import PingUploader from "./upload/index.js";
-import { isUndefined, sanitizeApplicationId } from "./utils.js";
-import { CoreMetrics } from "./internal_metrics.js";
+import { generateUUIDv4, isUndefined, sanitizeApplicationId } from "./utils.js";
 import EventsDatabase from "./metrics/events_database.js";
 import UUIDMetricType from "./metrics/types/uuid.js";
 import DatetimeMetricType from "./metrics/types/datetime.js";
 import { DatetimeMetric } from "./metrics/types/datetime_metric.js";
 import Dispatcher from "./dispatcher.js";
-import CorePings from "./internal_pings.js";
 import { registerPluginToEvent, testResetEvents } from "./events/utils.js";
 
 import Platform from "../platform/index.js";
 import TestPlatform from "../platform/test/index.js";
 import { DebugOptions } from "./debug_options.js";
 import { Lifetime } from "./metrics/lifetime.js";
+import StringMetricType from "./metrics/types/string.js";
+import TimeUnit from "./metrics/time_unit.js";
+import { createMetric } from "./metrics/utils.js";
+import PingType from "./pings/index.js";
 
 class Glean {
   // The Glean singleton.
@@ -600,6 +602,160 @@ class Glean {
 
     // Re-Initialize Glean.
     await Glean.testInitialize(applicationId, uploadEnabled, config);
+  }
+}
+
+class CoreMetrics {
+  readonly clientId: UUIDMetricType;
+  readonly firstRunDate: DatetimeMetricType;
+  readonly os: StringMetricType;
+  readonly osVersion: StringMetricType;
+  readonly architecture: StringMetricType;
+  readonly locale: StringMetricType;
+  // Provided by the user
+  readonly appBuild: StringMetricType;
+  readonly appDisplayVersion: StringMetricType;
+
+  constructor() {
+    this.clientId = new UUIDMetricType({
+      name: "client_id",
+      category: "",
+      sendInPings: ["glean_client_info"],
+      lifetime: Lifetime.User,
+      disabled: false,
+    });
+
+    this.firstRunDate = new DatetimeMetricType({
+      name: "first_run_date",
+      category: "",
+      sendInPings: ["glean_client_info"],
+      lifetime: Lifetime.User,
+      disabled: false,
+    }, TimeUnit.Day);
+
+    this.os = new StringMetricType({
+      name: "os",
+      category: "",
+      sendInPings: ["glean_client_info"],
+      lifetime: Lifetime.Application,
+      disabled: false,
+    });
+
+    this.osVersion = new StringMetricType({
+      name: "os_version",
+      category: "",
+      sendInPings: ["glean_client_info"],
+      lifetime: Lifetime.Application,
+      disabled: false,
+    });
+
+    this.architecture = new StringMetricType({
+      name: "architecture",
+      category: "",
+      sendInPings: ["glean_client_info"],
+      lifetime: Lifetime.Application,
+      disabled: false,
+    });
+
+    this.locale = new StringMetricType({
+      name: "locale",
+      category: "",
+      sendInPings: ["glean_client_info"],
+      lifetime: Lifetime.Application,
+      disabled: false,
+    });
+
+    this.appBuild = new StringMetricType({
+      name: "app_build",
+      category: "",
+      sendInPings: ["glean_client_info"],
+      lifetime: Lifetime.Application,
+      disabled: false,
+    });
+
+    this.appDisplayVersion = new StringMetricType({
+      name: "app_display_version",
+      category: "",
+      sendInPings: ["glean_client_info"],
+      lifetime: Lifetime.Application,
+      disabled: false,
+    });
+  }
+
+  async initialize(config: ConfigurationInterface, platform: Platform, metricsDatabase: MetricsDatabase): Promise<void> {
+    await this.initializeClientId(metricsDatabase);
+    await this.initializeFirstRunDate(metricsDatabase);
+    await StringMetricType._private_setUndispatched(this.os, await platform.info.os());
+    await StringMetricType._private_setUndispatched(this.osVersion, await platform.info.osVersion());
+    await StringMetricType._private_setUndispatched(this.architecture, await platform.info.arch());
+    await StringMetricType._private_setUndispatched(this.locale, await platform.info.locale());
+    await StringMetricType._private_setUndispatched(this.appBuild, config.appBuild || "Unknown");
+    await StringMetricType._private_setUndispatched(this.appDisplayVersion, config.appDisplayVersion || "Unknown");
+  }
+
+  /**
+   * Generates and sets the client_id if it is not set,
+   * or if the current value is currepted.
+   *
+   * @param metricsDatabase The metrics database.
+   */
+  private async initializeClientId(metricsDatabase: MetricsDatabase): Promise<void> {
+    let needNewClientId = false;
+    const clientIdData = await metricsDatabase.getMetric(CLIENT_INFO_STORAGE, this.clientId);
+    if (clientIdData) {
+      try {
+        const currentClientId = createMetric("uuid", clientIdData);
+        if (currentClientId.payload() === KNOWN_CLIENT_ID) {
+          needNewClientId = true;
+        }
+      } catch {
+        console.warn("Unexpected value found for Glean clientId. Ignoring.");
+        needNewClientId = true;
+      }
+    } else {
+      needNewClientId = true;
+    }
+
+    if (needNewClientId) {
+      await UUIDMetricType._private_setUndispatched(this.clientId, generateUUIDv4());
+    }
+  }
+
+  /**
+   * Generates and sets the first_run_date if it is not set.
+   *
+   * @param metricsDatabase The metrics database.
+   */
+  private async initializeFirstRunDate(metricsDatabase: MetricsDatabase): Promise<void> {
+    const firstRunDate = await metricsDatabase.getMetric(
+      CLIENT_INFO_STORAGE,
+      this.firstRunDate
+    );
+
+    if (!firstRunDate) {
+      await DatetimeMetricType._private_setUndispatched(this.firstRunDate);
+    }
+  }
+}
+
+/**
+ * Glean-provided pings, all enabled by default.
+ *
+ * Pings initialized here should be defined in `./pings.yaml`
+ * and manually translated into JS code.
+ */
+ class CorePings {
+  // This ping is intended to communicate to the Data Pipeline
+  // that the user wishes to have their reported Telemetry data deleted.
+  // As such it attempts to send itself at the moment the user opts out of data collection.
+  readonly deletionRequest: PingType;
+
+  constructor() {
+    this.deletionRequest = new PingType({
+      name: DELETION_REQUEST_PING_NAME,
+      includeClientId: true,
+      sendIfEmpty: true,
+    });
   }
 }
 
