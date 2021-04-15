@@ -236,7 +236,7 @@ describe("PingType", function() {
     await assert.rejects(p);
   });
 
-  it("runs a validator: sorry", async function() {
+  it("the validator is not affected by recordings after submit", async function() {
     const ping = new PingType({
       name: "custom",
       includeClientId: true,
@@ -253,25 +253,19 @@ describe("PingType", function() {
     });
 
     let validatorRun = false;
+    const TEST_NUM_ADDITIONS = 100;
 
     const p = ping.testBeforeNextSubmit(async () => {
-      await new Promise<void>(resolve => {
-        setTimeout(() => resolve(), 100);
-      });
+      await new Promise(r => setTimeout(r, 100));
+
       const value = await counter.testGetValue();
-      console.log("!!!", value);
-      assert.strictEqual(value, 100);
+      assert.notStrictEqual(value, TEST_NUM_ADDITIONS);
       validatorRun = true;
     });
     ping.submit("test");
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < TEST_NUM_ADDITIONS; i++) {
       counter.add();
-      Context.dispatcher.launch(async () => {
-        await new Promise<void>(resolve => {
-          setTimeout(() => resolve(), 10);
-        });
-      });
     }
 
     await p;
