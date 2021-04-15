@@ -141,7 +141,7 @@ class PingType implements CommonPingData {
    */
   async testBeforeNextSubmit(validatorFn: ValidatorFunction): Promise<void> {
     if (this.testValidator) {
-      console.error(`There is an existing test call for ping "${this.name}": ignoring.`);
+      console.error(`There is an existing test call for ping "${this.name}". Ignoring.`);
       return;
     }
 
