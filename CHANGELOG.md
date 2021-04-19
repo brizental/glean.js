@@ -1,6 +1,10 @@
 # Unreleased changes
 
-[Full changelog](https://github.com/mozilla/glean.js/compare/v0.8.1...main)
+[Full changelog](https://github.com/mozilla/glean.js/compare/v0.9.0...main)
+
+# v0.9.0 (2021-04-19)
+
+[Full changelog](https://github.com/mozilla/glean.js/compare/v0.8.1...v0.9.0)
 
 * [#202](https://github.com/mozilla/glean.js/pull/202): Add a testing API for the ping type.
 
