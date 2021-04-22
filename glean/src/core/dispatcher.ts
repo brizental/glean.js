@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { generateUUIDv4 } from "./utils.js";
+import { generateUUIDv4, isString } from "./utils.js";
 
 // The possible states a dispatcher instance can be in.
 export const enum DispatcherState {
@@ -10,13 +10,18 @@ export const enum DispatcherState {
   //
   // When the dispatcher is in this state it will not enqueue
   // more than `maxPreInitQueueSize` tasks.
-  Uninitialized,
+  Uninitialized = "Uninitialized",
   // There are no commands queued and the dispatcher is idle.
-  Idle,
+  Idle = "Idle",
   // The dispatcher is currently processing queued tasks.
-  Processing,
+  Processing = "Processing",
   // The dispatcher is stopped, tasks queued will not be immediatelly processed.
-  Stopped,
+  Stopped = "Stopped",
+  // The dispatcher is blocked, attempting to launch a new task outside of test mode will throw an exception.
+  //
+  // TODO: Only allow this state on test mode (depends on Bug 1682771).
+  Blocked = "Blocked",
+  BlockedProcessing = "BlockedProcessing",
 }
 
 // The possible commands to be processed by the dispatcher.
@@ -27,6 +32,8 @@ const enum Commands {
   Task,
   // The dispatcher should stop executing the queued tasks.
   Stop,
+  // The dispatcher should stop go on a blocked state.
+  Block,
   // The dispatcher should stop executing the queued tasks and clear the queue.
   Clear,
 }
@@ -153,6 +160,11 @@ class Dispatcher {
     let nextCommand = this.getNextCommand();
     while(nextCommand) {
       switch(nextCommand.command) {
+      case(Commands.Block):
+        console.log("BLOCKING THE DISPATCHER");
+        this.state = DispatcherState.Blocked;
+        this.notifyObservers(nextCommand);
+        return;
       case(Commands.Stop):
         this.state = DispatcherState.Stopped;
         this.notifyObservers(nextCommand);
@@ -163,6 +175,7 @@ class Dispatcher {
         this.notifyObservers(nextCommand);
         return;
       case(Commands.Task):
+        console.log("EXECUTING TASK", nextCommand.testId);
         await this.executeTask(nextCommand.task);
         this.notifyObservers(nextCommand);
         nextCommand = this.getNextCommand();
@@ -175,8 +188,11 @@ class Dispatcher {
    * in case the dispatcher is currently Idle.
    */
   private triggerExecution(): void {
-    if (this.state === DispatcherState.Idle && this.queue.length > 0) {
-      this.state = DispatcherState.Processing;
+    const originalState = this.state;
+    if ([DispatcherState.Idle, DispatcherState.Blocked].includes(originalState) && this.queue.length > 0) {
+      const processingState = this.state === DispatcherState.Idle ? DispatcherState.Processing : DispatcherState.BlockedProcessing;
+
+      this.state = processingState;
       this.currentJob = this.execute();
 
       // We decide against using `await` here, so that this function does not return a promise and
@@ -188,8 +204,8 @@ class Dispatcher {
       this.currentJob
         .then(() => {
           this.currentJob = undefined;
-          if (this.state === DispatcherState.Processing) {
-            this.state = DispatcherState.Idle;
+          if (this.state === processingState) {
+            this.state = originalState;
           }
         })
         .catch(error => {
@@ -199,6 +215,10 @@ class Dispatcher {
           );
         });
     }
+  }
+
+  private isTestCommand(command: Command): boolean {
+    return command.command === Commands.Task && isString(command.testId);
   }
 
   /**
@@ -217,6 +237,10 @@ class Dispatcher {
    * @returns Wheter or not the task was queued.
    */
   private launchInternal(command: Command, priorityTask = false): boolean {
+    if ([DispatcherState.Blocked, DispatcherState.BlockedProcessing].includes(this.state) && !this.isTestCommand(command)) {
+      throw new Error("Attempted to enqueue a non test task, but the dispatcher is blocked.");
+    }
+
     if (!priorityTask && this.state === DispatcherState.Uninitialized) {
       if (this.queue.length >= this.maxPreInitQueueSize) {
         console.warn("Unable to enqueue task, pre init queue is full.");
@@ -317,6 +341,32 @@ class Dispatcher {
     if (this.state === DispatcherState.Stopped) {
       this.state = DispatcherState.Idle;
       this.triggerExecution();
+    }
+  }
+
+  /**
+   * Enqueues a Block command.
+   *
+   * The Block command will put the Dispatcher in a Blocked state.
+   *
+   * While blocked the dispatcher will throw an error
+   * if there is attempt to launch a new task that is not a test task.
+   *
+   * In order to unblock the dispatcher, call the `unblock` method.
+   */
+  block(): void {
+    this.launchInternal({ command: Commands.Block });
+  }
+
+  /**
+   * Returns the dispatcher to an Idle stte in case it is blocked.
+   *
+   * This is a no-op if the dispatcher is not blocked.
+   */
+  unblock(): void {
+    console.log("UNBLOCKING THE DISPATCHER");
+    if (this.state === DispatcherState.Blocked) {
+      this.state = DispatcherState.Idle;
     }
   }
 

@@ -63,12 +63,15 @@ class PingType implements CommonPingData {
     // in the dispatched submission task on the related promise, which
     // will always resolve due to the use of `finally`.
     if (this.testValidator) {
+      Context.dispatcher.block();
+
       const cleanup = () => {
         this.resolveTestPromiseFunction = undefined;
         this.rejectTestPromiseFunction = undefined;
         this.testValidator = undefined;
       };
 
+      // Only run the test validator once the dispatcher is properly blocked.
       this.testValidator(reason)
         .then(() => {
           // Temporarily store the function and then clean up, so that fast consecutive
@@ -77,6 +80,7 @@ class PingType implements CommonPingData {
           const resolver = this.resolveTestPromiseFunction;
           cleanup();
 
+          Context.dispatcher.unblock();
           this.internalSubmit(reason, resolver);
         })
         .catch(e => {
@@ -88,6 +92,7 @@ class PingType implements CommonPingData {
           const rejecter = this.rejectTestPromiseFunction;
           cleanup();
 
+          Context.dispatcher.unblock();
           this.internalSubmit(reason, rejecter);
         });
     } else {
@@ -148,7 +153,10 @@ class PingType implements CommonPingData {
     return new Promise((resolve, reject) => {
       this.resolveTestPromiseFunction = resolve;
       this.rejectTestPromiseFunction = reject;
-      this.testValidator = validatorFn;
+      this.testValidator = async (reason?: string) => {
+        await Context.dispatcher.testBlockOnQueue();
+        await validatorFn(reason);
+      };
     });
   }
 }
