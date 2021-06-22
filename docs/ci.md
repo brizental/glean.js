@@ -13,7 +13,8 @@ This repository runs multiple checks on each PR to ensure code quality.
 >
 > This is very important because "Pass environment variables to forks" is turned on
 > for the Glean.js CircleCI project and any environment variable added to it will be
-> available to any fork unrestricted.
+> available to any fork unrestricted. Note that this will also share SSH keys with forks,
+> prefer adding such keys as environment variables to the restricted context as well.
 >
 > Finally, note that jobs that will not ever be run on forks do not need approval, as they
 > already can access the restricted context.
