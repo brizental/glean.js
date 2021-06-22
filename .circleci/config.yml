@@ -238,11 +238,11 @@ workflows:
                 - /^release-*/
       - docs-deploy:
           context: data-eng-gleanjs-gh
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v.*/
+          # filters:
+          #   branches:
+          #     ignore: /.*/
+          #   tags:
+          #     only: /^v.*/
       - publish:
           context: data-eng-gleanjs-gh
           filters:
